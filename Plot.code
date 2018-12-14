@@ -54,7 +54,7 @@ Garden<-c('#8cab7a','#98292d','#f4aa40','#366f45','#d3cf27','#94799b','#b6d5e1',
           '#e03c31','#66455d','#C9AD00')
 final$col<-Garden
 
-#with colours
+#Figure 1. Per cent of population living in houses by per cent who compost in each province
 ggplot(final, aes(Prop.houses,total, colour=Province))+
   scale_colour_manual(values=final$col)+
   geom_point()+
@@ -82,7 +82,7 @@ colnames(GDP)<-c("Province","Percap.GDP")
 final<-left_join(GDP,final)
 
 
-#Per capita GDP vs composters by province
+#Figure 2. Per capita GDP vs composters by province
 ggplot(final, aes(Percap.GDP,total))+
   geom_point()+
   labs(x="Per Capita GDP($)", y="% Composters",caption="Figure 2. Per capita GDP vs Proportion of composters by province")+ 
@@ -94,7 +94,7 @@ ggsave("labeledcompost1.pdf", plot = last_plot(), device = NULL, path = NULL,
        scale = 1, width = 8.9, height = 9, units = "cm",
        dpi = 300, limitsize = TRUE)
 
-#Wrapped by province
+#Figure 3. Proportion of composters vs per capita GDP and proportion house dwellers in each province
 
 scaleFactor <- max(final$Percap.GDP) / max(final$Prop.houses)
 
