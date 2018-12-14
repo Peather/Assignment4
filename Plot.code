@@ -1,0 +1,120 @@
+#load libraries
+library(dplyr)
+library(rvest)
+library(ggplot2)
+library(ggimage)
+library(ggrepel)
+
+#Grab Website
+HoCompost <- read_html("https://www150.statcan.gc.ca/n1/pub/16-002-x/2013001/article/11848-eng.htm")
+
+#Select provincial compost data and format to numeric values that can be used in calculations
+Messy <- HoCompost %>% html_nodes('table')  %>% .[[2]] %>% html_table(fill=TRUE)
+
+prov.cdata <- Messy[c(4:13),c(1,3,4)]
+colnames(prov.cdata) <- c("Province","Composted_kitchen_waste","Composted_yard_waste")
+prov.cdata[,2]<-as.numeric(prov.cdata[,2])
+prov.cdata[,3]<-as.numeric(prov.cdata[,3])
+
+#find the total per cent of composters in each province using the average proportions of yard and kitchen composters
+prov.cdata$total<-rowSums(prov.cdata[,c(2:3)])/2
+prov.cdata
+
+#Select and display provincial dwelling data and remove commas in data values by looping gsub through the dataframe
+
+Promes <- read_html("https://www12.statcan.gc.ca/census-recensement/2016/dp-pd/hlt-fst/td-tl/Table.cfm?Lang=Eng&T=101&SR=1&S=1&O=A&RPP=25")
+Promes <- Promes %>% html_nodes('table')  %>% .[[1]] %>% html_table(fill=TRUE)
+
+Promes <- Promes[c(4:13),c(1,3:9)]
+colnames(Promes)<- c("Province","Single_detached_house","Apartment_five_or_more_storeys",
+                      "Apartment_under_five_storeys",
+                      "Row_house","Semi_detached house","Flat_duplex","Other_single_attached_house" )
+
+
+for (i in 2:8){Promes[,i] <- as.numeric(gsub(",","",Promes[,i]))}
+Promes
+
+#Find sum of apartment building vs. house style dwellings and calculate the proportion that live in houses
+#House style dwellings include single detached, semi-detached row and other single attached houses as well
+#as Flat duplexes while buildings inlcude all apartments
+
+buildings <- rowSums(Promes[,c(3,4)])
+houses <- rowSums(Promes[,c(2,5:8)])
+
+Provdwell<-data.frame("Province"= Promes$Province,"Buildings"= buildings,"Houses" = houses)
+
+Provdwell$Prop.houses <- Provdwell$Houses/rowSums(Provdwell[,c(2:3)])
+Provdwell
+
+final<-left_join(Provdwell, prov.cdata)
+final$Province<-as.factor(final$Province)
+final$Province<-c("BC","AB","SK","MB","ON","QC","NB","PEI","NS","NFLD")
+
+Garden<-c('#8cab7a','#98292d','#f4aa40','#366f45','#d3cf27','#94799b','#b6d5e1',
+          '#e03c31','#66455d','#C9AD00')
+final$col<-Garden
+
+#with colours
+ggplot(final, aes(Prop.houses,total, colour=Province))+
+  scale_colour_manual(values=final$col)+
+  geom_point()+
+  labs(x="Per cent House Dwellers", y="Per cent Composters",
+       caption="Figure 1. Per cent of population living in houses by \n per cent who compost in each province")+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  theme(plot.margin = margin(1,.89, 1,.89,'cm'), text = element_text(size =7))+
+  ggsave("colouredcompost1.pdf", plot = last_plot(), device = NULL, path = NULL,
+         scale = 1, width = 8.9, height = 9, units = "cm",
+         dpi = 300, limitsize = TRUE)
+
+##Compare provincial per capita GDP with per cent composters
+
+GDP<-read_html("https://en.wikipedia.org/wiki/List_of_Canadian_provinces_and_territories_by_gross_domestic_product#GDP_and_per_capita_GDP")
+GDP <- GDP %>% html_nodes('table')  %>% .[[1]] %>% html_table(fill=TRUE)
+
+for(i in 2:11){GDP[i,5]<-strsplit(GDP[,5],'♠')[[i]][2]}
+
+GDP[,5]<-as.numeric(gsub(",","",GDP[,5])) 
+
+GDP<-GDP[2:11,c(1,5)]
+colnames(GDP)<-c("Province","Percap.GDP")
+
+final<-left_join(GDP,final)
+
+
+#Per capita GDP vs composters by province
+ggplot(final, aes(Percap.GDP,total))+
+  geom_point()+
+  labs(x="Per Capita GDP($)", y="% Composters",caption="Figure 2. Per capita GDP vs Proportion of composters by province")+ 
+  geom_label_repel(aes(label = Province),label.size = 0, size=2.5)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  theme(plot.margin = margin(1,.89, 1,.89,'cm'), text = element_text(size =7))+
+ggsave("labeledcompost1.pdf", plot = last_plot(), device = NULL, path = NULL,
+       scale = 1, width = 8.9, height = 9, units = "cm",
+       dpi = 300, limitsize = TRUE)
+
+#Wrapped by province
+
+scaleFactor <- max(final$Percap.GDP) / max(final$Prop.houses)
+
+house<-"https://www.clipartmax.com/png/middle/4-48413_simple-cartoon-house-clip-art-at-clkercom-vector-clip-royalty-free-cartoon.png"
+
+ggplot(final, aes(x=total,y=Prop.houses*scaleFactor)) +
+  labs(x="% Composters", caption="Figure 3. Proportion of composters vs per capita GDP \n and proportion house dwellers in each province")+
+  geom_image(image=house,size=0.4)+
+  geom_point(aes(y=Percap.GDP), col='#66455d',pch='$',size=2.5) +
+  scale_y_continuous(name="Per capita GDP ($)", sec.axis=sec_axis(~./scaleFactor, name="% House Dwellers"))+
+  theme(
+    axis.title.y.left=element_text(color='#f4aa40'),
+    axis.text.y.left=element_text(color='#f4aa40',size=7),
+    axis.title.y.right=element_text(color='#66455d'),
+    axis.text.y.right=element_text(color='#66455d',size=7),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+    panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  facet_wrap(vars(Province))+
+  theme(strip.background =element_rect(fill="white"),strip.text = element_text(size=8),
+        axis.text.x = element_text( size=6, angle=45),
+        axis.title = element_text(size=7),plot.caption=element_text(size=7,hjust=0.6))
+ggsave("wrappedcompost.pdf", plot = last_plot(), device = NULL, path = NULL,
+       scale = 1, width = 8.9, height = 9, units = "cm",
+       dpi = 300, limitsize = TRUE)
