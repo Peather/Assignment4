@@ -1,0 +1,19 @@
+Tufte’s Rules
+
+1. show data: real data points are clearly visible in all the graphs and it is easy to tell the xy coordinates
+
+2. Figure 3 uses graphics to distinguish per Capita GDP with a ‘$’ and Proportion of house dwellers with an image of a house
+
+3.There is no chart junk in any of these graphics, all information on the graphs have purpose
+
+4.Utilize data ink: Default grey background grid was removed in all and the plots are only outlined by axes. That was done using:
+
+ panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+
+5. Axes are all labeled, and Figure 2. uses labels to identify each province’s datapoint
+
+6. Figure 3 tells the complete story of the data analysis showing each province’s per capita GDP and proportion of house dwellers together for easy comparison.
+
+7. Figure 3 also uses multiples to easily compare differences between provinces without having to consult a legend
+
+8.Figure 1 utilizes colours extracted from an image of compost to identify each province’s Per Capita G
